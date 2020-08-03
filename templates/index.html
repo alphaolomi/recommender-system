@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=yes">
+    <meta name="description" content="CIVE Recommender System">
+    <meta name="robots" content="none">
+    <title>CIVE Recommender System</title>
+    <link href="{{ url_for('static', filename = 'images/favicon.ico') }}" rel="shortcut icon" type="image/x-icon">
+	<link href="{{ url_for('static', filename = 'css/main.css') }}" rel="stylesheet" type="text/css">
+	
+	<style type="text/css">
+		.grid {
+			display: grid;
+			grid-template-columns: 30% 30% auto;
+			grid-column-gap: 50px;
+			grid-row-gap: 10px;
+			color: #fff;
+		}
+		
+		.grid > div {
+			text-align: left;
+		}
+		
+		input[type="radio"],
+		input[type="checkbox"] {
+			width: auto !important;
+			height: auto !important;
+			display: inline-block !important;
+			vertical-align: middle;
+			margin-right: 5px;
+		}
+		
+		#programmes {
+			text-align: left;
+		}
+		
+		.programme {
+			font-size: 1.35em;
+			color: #cc8400;
+			margin: 5px 0;
+		}
+		
+		.programme:first-child {
+			font-size: 1.75em;
+		}
+		
+		.programme:nth-child(2) {
+			font-size: 1.5em;
+		}
+		
+		.programme span {
+			font-size: 18px !important;
+			display: inline-block;
+			vertical-align: middle;
+		}
+	</style>
+	<script src="{{ url_for('static', filename = 'js/knockout-3.5.1.js') }}" type="text/javascript"></script>
+</head>
+<body>
+<div id="container">
+    {% include 'header.html' ignore missing %}
+    <div id="content" class="text-center">
+		<div class="input-group">
+			<div class="label">Choose Your <span>Preferred Job</span></div>
+            <div class="input">
+				<div class="grid" data-bind="foreach: jobs">
+					<div><input data-bind="checkedValue: $data, checked: $parent.inputJob" type="radio"> <span data-bind="text: $data"></span></div>
+				</div>
+			</div>
+		</div>
+		<div class="input-group">
+			<div class="label">Choose Your <span>Preferred Teaching Styles</span></div>
+            <div class="input">
+				<div class="grid" data-bind="foreach: teachingStyles">
+					<div><input data-bind="checkedValue: $data, checked: $parent.inputTeachingStyles" type="checkbox"> <span data-bind="text: $data"></span></div>
+				</div>
+			</div>
+		</div>
+		<div class="input-group">
+			<div class="label">Enter your <span>Form VI</span> index number</div>
+            <div class="input">
+                <input type="text" placeholder="eg. S0651-0124-2012" autocomplete="off" data-bind="value: input">
+                <button type="button" data-bind="click: validateInput">Start</button>
+            </div>
+			<!--ko if: hasError-->
+            <div class="error" data-bind="html: error"></div>
+			<!--/ko-->
+        </div>
+		<div id="main">
+			<a href="/data-set">Go to data-set</a>
+		</div>
+    </div>
+	<!--ko if: overlay.isVisible-->
+	<div class="overlay animated fadeIn" data-bind="click: hideOverlay, style: { top: overlay.pageYOffset }">
+		<div class="overlay-body" data-bind="event: { click: function () {} }, clickBubble: false">
+			<div class="overlay-header" data-bind="html: overlay.title"></div>
+			<div class="overlay-content" data-bind="template: { name: overlay.template, afterRender: overlay.afterRender }"></div>
+		</div>
+	</div>
+	<!--/ko-->
+	<!--ko if: preloader.isVisible-->
+	<div class="overlay" id="preloader">
+		<div class="spinner"></div>
+	</div>
+	<!--/ko-->
+</div>
+<script type="text/html" id="defaultTmpl"></script>
+<script type="text/html" id="confirmInfoTmpl">
+	<div data-bind="with: info">
+		<div class="heading">Particulars</div>
+		<div class="info-row">
+			<span class="label">First Name</span>
+			<span class="value" data-bind="text: particulars.first_name"></span>
+		</div>
+		<div class="info-row">
+			<span class="label">Middle Name</span>
+			<span class="value" data-bind="text: particulars.middle_name"></span>
+		</div>
+		<div class="info-row">
+			<span class="label">Last Name</span>
+			<span class="value" data-bind="text: particulars.last_name"></span>
+		</div>
+		<div class="info-row">
+			<span class="label">Index Number</span>
+			<span class="value" data-bind="text: particulars.index_number"></span>
+		</div>
+		<div class="info-row">
+			<span class="label">Center</span>
+			<span class="value" data-bind="text: particulars.center_name"></span>
+		</div>
+		<div class="heading">Results</div>
+		<!--ko foreach: results.subjects-->
+		<div class="info-row">
+			<span class="label" data-bind="text: $data.subject_name"></span>
+			<span class="value" data-bind="text: $data.grade"></span>
+		</div>
+		<!--/ko-->
+		<br><br><div class="text-center"><button type="button" data-bind="event: { click: $parent.hideOverlay }, clickBubble: false">Back</button>&nbsp; <button type="button" data-bind="event: { click: $parent.recommend }, clickBubble: false">Recommend</button></div><br>
+	</div>
+</script>
+<script type="text/html" id="recommendationTmpl">
+	<div data-bind="with: recommendation" class="text-center">
+		<br>
+		<img src="{{ url_for('static', filename = 'images/check.png') }}"><br><br>
+		<div class="heading">Your recommended degree programme(s) are:</div>
+		<div id="programmes" data-bind="foreach: programmes">
+			<div class="programme" data-bind="html: '<span>-&nbsp;</span>' + $data.programme"></div>
+		</div>
+		<br><br><div class="text-center"><button type="button" data-bind="event: { click: $parent.hideOverlay }, clickBubble: false">Close</button></div><br>
+	</div>
+</script>
+<script type="text/html" id="noRecommendationTmpl">
+	<div class="text-center">
+		<br>
+		<img src="{{ url_for('static', filename = 'images/cancel.png') }}"><br><br>
+		<div class="heading">No recommended programme(s):</div>
+		<p>Your results did not get a recommendation</p>
+		<br><br><div class="text-center"><button type="button" data-bind="event: { click: hideOverlay }, clickBubble: false">Close</button></div><br>
+	</div>
+</script>
+<script src="{{ url_for('static', filename = 'js/overlay.js') }}" type="text/javascript"></script>
+<script type="text/javascript">	
+	function MVVM() {
+		var self = this;
+		self.overlay = new Overlay();
+		self.preloader = {
+			isVisible: ko.observable(false)
+		};
+		
+		self.showPreloader = function () {
+			self.preloader.isVisible(true);
+		};
+		
+		self.hidePreloader = function () {
+			self.preloader.isVisible(false);
+		};
+		
+		self.showOverlay = function (title, templateId) {
+			self.overlay.isVisible(true);
+			self.overlay.title(title);
+			self.overlay.template(templateId);
+			
+			var elements = self.overlay.afterRender();
+			if (elements.length) {
+				// do some cool stuff
+			}
+		};
+		
+		self.hideOverlay = function () {
+			self.overlay.hide();
+		};
+		
+		self.jobs = ko.observableArray([]);
+		self.teachingStyles = ko.observableArray([]);
+		self.inputJob = ko.observable();
+		self.inputTeachingStyles = ko.observableArray([]);
+		self.input = ko.observable('');
+		self.hasError = ko.observable(false);
+		self.error = ko.observable();
+		self.info = ko.observable({});
+		self.recommendation = ko.observable({});
+		
+		self.validateInput = function () {
+			//self.info({"particulars":{"index_number":"S0155-0582","first_name":"JOSEPH","middle_name":"W","last_name":"MASHAURI","sex":"M","center_number":"S0155","center_name":"TABORA BOYS SECONDARY SCHOOL","exam_id":"2"},"results":{"division":{"division":"I","points":"9"},"subjects":[{"subject_code":"131","subject_name":"PHYSICS","grade":"B"},{"subject_code":"132","subject_name":"CHEMISTRY","grade":"C"},{"subject_code":"142","subject_name":"ADVANCED MATHEMATICS","grade":"D"},{"subject_code":"111","subject_name":"GENERALSTUDIES","grade":"F"}]},"status":{"code":1,"message":"okay"}});
+			//self.showOverlay('Confirm Information', 'confirmInfoTmpl');
+			//return false;
+			
+			var idx = self.input();
+
+			if (!idx.length) {
+				self.hasError(true);
+				self.error('Index number is required');
+			} else {
+				if (!/^S\d{4,5}-\d{4}-\d{4}$/i.test(idx)) {
+					self.hasError(true);
+					self.error('Invalid index number');
+				}
+			}
+			
+			if (!self.hasError()) {
+				self.getToken();
+			}
+		};
+		
+		self.getToken = function () {
+			var token = localStorage.getItem('cr_token');
+			if (!token) {
+				self.requestToken();
+			} else {
+				self.getStudentResults();
+			}
+		};
+		
+		self.requestToken = function () {
+			self.showPreloader();
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState === 4) {
+					self.hidePreloader();
+					if (xhr.status === 200) {
+						var token = JSON.parse(xhr.responseText).token;
+						localStorage.setItem('cr_token', token);
+						self.getStudentResults();
+					}
+				}
+			};
+			
+			xhr.open('GET', 'https://cors-anywhere.herokuapp.com/https://api.necta.go.tz/api/public/auth/MjAxNzA3MTgxNTMzNTRiU0FUeUhUYnBIZW5VZEQuSk95MnJ3eDJFeG1VMFRnTTJBMFZneVZyMkRzNU0kbC5JMlB4bkxUNXYkUWpsMzEkJC5JWUx2JDlFVTgycVR4VXBsbWxUdyRuSllBVEVkcFQueUVoUk1PRXguTEhTMVhPLmJDWkdQVk9iMkQ4RzkkYkhERHd2VlRtcTIyLmxwVHdKWE82UURtc1RsUGE4MEU4eExsJGxPWVRpUnhsJFAxdnBKMSQ=', true);
+			xhr.send(null);
+		};
+		
+		self.getStudentResults = function () {
+			self.showPreloader();
+			var idx = self.input().split('-');
+			var token = localStorage.getItem('cr_token');
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState === 4) {
+					self.hidePreloader();
+					if (xhr.status === 200) {
+						try {
+							var response = JSON.parse(xhr.responseText);
+							var status = response.status;
+							if (status && status.code === 463) { // token expired
+								self.requestToken();
+							} else {
+								if (response) {
+									self.info(response);
+									self.showOverlay('Confirm Information', 'confirmInfoTmpl');
+								}
+							}
+						} catch (e) {
+							// ignore
+						}
+					}
+				}
+			};
+			
+			xhr.open('GET', 'https://cors-anywhere.herokuapp.com/https://api.necta.go.tz/api/public/results/' + idx[0] + '-' + idx[1] + '/2/' + idx[2] + '/' + token, true);
+			xhr.send(null);
+		};
+		
+		self.recommend = function () {
+			self.showPreloader();
+			
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState === 4) {
+					self.hidePreloader();
+					if (xhr.status === 200) {
+						try {
+							var response = JSON.parse(xhr.responseText);
+							var status = response.status;
+							if (status === 0) {
+								self.showOverlay('Recommendation', 'noRecommendationTmpl');
+							} else {
+								self.recommendation(response);
+								self.showOverlay('Recommendation', 'recommendationTmpl');
+							}
+						} catch (e) {
+							// ignore
+						}
+					}
+				}
+			};
+			
+			xhr.open('POST', '/recommend', true);
+			xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+			xhr.send(self.stringifyJSON({subjects: self.info().results.subjects, job: self.inputJob(), teaching_styles: self.inputTeachingStyles()}));
+		};
+		
+		self.loadCareerJobs = function () {
+			self.showPreloader();
+			
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState === 4) {
+					self.hidePreloader();
+					if (xhr.status === 200) {
+						self.jobs(JSON.parse(xhr.responseText));
+					}
+				}
+			};
+			
+			xhr.open('GET', '/career-jobs', true);
+			xhr.send(null);
+		};
+		
+		self.loadTeachingStyles = function () {
+			self.showPreloader();
+			
+			var xhr = new XMLHttpRequest();
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState === 4) {
+					self.hidePreloader();
+					if (xhr.status === 200) {
+						self.teachingStyles(JSON.parse(xhr.responseText));
+					}
+				}
+			};
+			
+			xhr.open('GET', '/teaching-styles', true);
+			xhr.send(null);
+		};
+		
+		self.stringifyJSON = function (data) {
+			return JSON.stringify(data);
+		};
+	}
+	
+	var VM = new MVVM();
+    ko.applyBindings(VM);
+	
+	VM.loadCareerJobs();
+	VM.loadTeachingStyles();
+</script>
+</body>
+</html>
